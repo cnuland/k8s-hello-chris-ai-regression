@@ -1,1 +1,5 @@
 /app/ignored/
+sessions/*.zip
+.DS_Store
+/app/__pycache__/
+app/__pycache__/ddenv.cpython-311.pyc

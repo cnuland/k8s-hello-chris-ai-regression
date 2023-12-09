@@ -26,7 +26,7 @@ def make_env(rank, env_conf, seed=0):
 
 if __name__ == '__main__':
 
-    sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
+    sess_path = Path(f'sessions/session_{str(uuid.uuid4())[:8]}')
     ep_length = 2**2000
 
     env_config = {
@@ -40,14 +40,14 @@ if __name__ == '__main__':
     env = make_env(0, env_config)() #SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
     
     #env_checker.check_env(env)
-    file_name = 'session_3dd9639e/dd_524288_steps'
+    file_name = 'sessions/session_9ac491c9/dd_524288_steps'
     
     print('\nloading checkpoint')
     model = PPO.load(file_name, env=env, custom_objects={'lr_schedule': 0, 'clip_range': 0})
         
     #keyboard.on_press_key("M", toggle_agent)
     obs, info = env.reset()
-    obs2 = obs[0]
+    print(obs)
     while True:
         action = 2 # pass action
         try:
@@ -56,7 +56,7 @@ if __name__ == '__main__':
         except:
             agent_enabled = False
         if agent_enabled:
-            action, _states = model.predict(obs2, deterministic=False)
+            action, _states = model.predict(obs, deterministic=False)
         obs, rewards, terminated, truncated, info = env.step(action)
         env.render()
     env.close()

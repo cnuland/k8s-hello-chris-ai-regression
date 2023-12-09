@@ -129,10 +129,11 @@ class DDEnv(Env):
         self.reset_count += 1
         return self.render(), {}
     
-    def render(self):
+    def render(self, reduce_res=True):
         game_pixels_render = self.screen.screen_ndarray() # (144, 160, 3)
-        game_pixels_render = (255*resize(game_pixels_render, self.output_shape)).astype(np.uint8)
-        return game_pixels_render, {}
+        if reduce_res:
+            game_pixels_render = (255*resize(game_pixels_render, self.output_shape)).astype(np.uint8)
+        return game_pixels_render
     
     def step(self, action):
         self.run_action_on_emulator(action)
@@ -168,6 +169,7 @@ class DDEnv(Env):
                     self.pyboy.send_input(self.release_button[action - 4])
                 if self.valid_actions[action] == WindowEvent.PRESS_BUTTON_START:
                     self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_START)
+
             self.pyboy.tick()
     
     def get_score(self):

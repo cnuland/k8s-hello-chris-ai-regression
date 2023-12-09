@@ -27,7 +27,7 @@ if __name__ == '__main__':
 
 
     ep_length = 2048 * 16
-    sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
+    sess_path = Path(f'sessions/session_{str(uuid.uuid4())[:8]}')
 
     env_config = {
                 'headless': True, 'save_final_state': True, 'early_stop': False,
@@ -45,7 +45,7 @@ if __name__ == '__main__':
                                      name_prefix='dd')
     #env_checker.check_env(env)
     learn_steps = 40
-    file_name = 'session_3dd9639e/dd_524288_steps' #'session_e41c9eff/poke_250871808_steps'
+    file_name = 'sessions/session_f7dc554a/dd_4194304_steps' #'session_e41c9eff/poke_250871808_steps'
     
     #'session_bfdca25a/poke_42532864_steps' #'session_d3033abb/poke_47579136_steps' #'session_a17cc1f5/poke_33546240_steps' #'session_e4bdca71/poke_8945664_steps' #'session_eb21989e/poke_40255488_steps' #'session_80f70ab4/poke_58982400_steps'
     if exists(file_name + '.zip'):
@@ -58,7 +58,7 @@ if __name__ == '__main__':
         model.rollout_buffer.reset()
     else:
         print("Knowledge is power")
-        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, batch_size=512, n_epochs=1, gamma=0.999)
+        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, batch_size=512, n_epochs=1, gamma=0.800)
     
     for i in range(learn_steps):
         print("learning :)")
