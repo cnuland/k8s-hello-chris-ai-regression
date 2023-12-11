@@ -50,10 +50,11 @@ class DDEnv(Env):
         self.instance_id = str(uuid.uuid4())[:8]
         self.s_path.mkdir(exist_ok=True)
         self.all_runs = []
+        self.old_pos = []
 
         # Set this in SOME subclasses
         self.metadata = {"render.modes": []}
-        self.reward_range = (0, 15000)
+        self.reward_range = (0, 100000)
 
         self.valid_actions = [
             WindowEvent.PRESS_ARROW_DOWN,
@@ -124,6 +125,7 @@ class DDEnv(Env):
         self.last_lives = 3
         self.total_lives_rew = 3
         self.last_score = 0
+        self.last_level = 0
         self.total_score_rew = 0
         self.step_count = 0
         self.reset_count += 1
@@ -178,9 +180,29 @@ class DDEnv(Env):
         score = int(scoreText)
         return score
     
+    #This function looks at the background and makes sure there are changes happening. Promotes that the AI keeps moving and doesn't get stuck
+    def get_screen_position(self):
+        return [PyBoy.get_memory_value(self.pyboy,0xE100), PyBoy.get_memory_value(self.pyboy,0xE101), PyBoy.get_memory_value(self.pyboy,0xE102), PyBoy.get_memory_value(self.pyboy,0xE103), PyBoy.get_memory_value(self.pyboy,0xE104), PyBoy.get_memory_value(self.pyboy,0xE105), PyBoy.get_memory_value(self.pyboy,0xE106), PyBoy.get_memory_value(self.pyboy,0xE107), PyBoy.get_memory_value(self.pyboy,0xE108), PyBoy.get_memory_value(self.pyboy,0xE109), PyBoy.get_memory_value(self.pyboy,0xE10A), PyBoy.get_memory_value(self.pyboy,0xE10B), PyBoy.get_memory_value(self.pyboy,0xE10C), PyBoy.get_memory_value(self.pyboy,0xE10D), PyBoy.get_memory_value(self.pyboy,0xE10E), PyBoy.get_memory_value(self.pyboy,0xE10F)]
+
     def get_lives(self):
         return PyBoy.get_memory_value(self.pyboy,0xC499)
     
+    def get_level(self):
+        return PyBoy.get_memory_value(self.pyboy,0xE110)
+    
+    def get_position_reward(self):
+        pos = self.get_screen_position()
+        if self.step_count % 10 == 0:
+            if pos == self.old_pos:
+                self.old_pos = pos
+                return -1
+            else:
+                self.old_pos = pos
+                return 1
+        else:
+            return 0
+
+
     def get_score_reward(self):
         new_score = self.get_score()
         if self.last_score != new_score:
@@ -191,6 +213,14 @@ class DDEnv(Env):
         else:
             return 0
     
+    def get_level_reward(self):
+        new_level = self.get_score()
+        if self.last_level != new_level:
+            self.last_level = new_level
+            return 150
+        else:
+            return 0
+
     def get_lives_reward(self):
         new_lives = self.get_lives()
         if self.last_lives != new_lives:
@@ -214,7 +244,9 @@ class DDEnv(Env):
 
         state_scores = {
             'lives': self.get_lives_reward() * 15,  
-            'score': int(self.get_score_reward() // 10), 
+            'score': int(self.get_score_reward() // 10),
+            'pos': int(self.get_position_reward()),
+            'level': int(self.get_level_reward()),
         }
 
         if print_stats and self.step_count % 20 == 0:

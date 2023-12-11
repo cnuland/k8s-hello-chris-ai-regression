@@ -26,12 +26,12 @@ def make_env(rank, env_conf, seed=0):
 if __name__ == '__main__':
 
 
-    ep_length = 2048 * 16
-    sess_path = Path(f'sessions/session_{str(uuid.uuid4())[:8]}')
+    ep_length = 2048 * 24
+    sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
 
     env_config = {
                 'headless': True, 'save_final_state': True, 'early_stop': False,
-                'action_freq': 24, 'init_state': 'ignored/dd.gb.state', 'max_steps': ep_length, 
+                'action_freq': 9, 'init_state': 'ignored/dd.gb.state', 'max_steps': ep_length, 
                 'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
                 'gb_path': '../ignored/dd.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0, 
                 'use_screen_explore': True, 'extra_buttons': False
@@ -45,7 +45,7 @@ if __name__ == '__main__':
                                      name_prefix='dd')
     #env_checker.check_env(env)
     learn_steps = 40
-    file_name = 'sessions/session_f7dc554a/dd_4194304_steps' #'session_e41c9eff/poke_250871808_steps'
+    file_name = 'session_f7dc554a/dd_4194304_steps' #'session_e41c9eff/poke_250871808_steps'
     
     #'session_bfdca25a/poke_42532864_steps' #'session_d3033abb/poke_47579136_steps' #'session_a17cc1f5/poke_33546240_steps' #'session_e4bdca71/poke_8945664_steps' #'session_eb21989e/poke_40255488_steps' #'session_80f70ab4/poke_58982400_steps'
     if exists(file_name + '.zip'):

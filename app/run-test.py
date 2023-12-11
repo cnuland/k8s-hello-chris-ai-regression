@@ -27,7 +27,7 @@ if __name__ == '__main__':
 
     env_config = {
                 'headless': False, 'save_final_state': True, 'early_stop': False,
-                'action_freq': 24, 'init_state': 'ignored/dd.igb.state', 'max_steps': ep_length, 
+                'action_freq': 24, 'init_state': 'ignored/dd.gb.state', 'max_steps': ep_length, 
                 'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
                 'gb_path': 'ignored/dd.gb', 'debug': True, 'sim_frame_dist': 2_000_000.0, 
                 'use_screen_explore': True, 'reward_scale': 4, 'extra_buttons': False,

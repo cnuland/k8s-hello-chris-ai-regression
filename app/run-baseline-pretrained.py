@@ -26,12 +26,12 @@ def make_env(rank, env_conf, seed=0):
 
 if __name__ == '__main__':
 
-    sess_path = Path(f'sessions/session_{str(uuid.uuid4())[:8]}')
+    sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
     ep_length = 2**2000
 
     env_config = {
                 'headless': False, 'save_final_state': True, 'early_stop': False,
-                'action_freq': 24, 'init_state': 'ignored/dd.gb.state', 'max_steps': ep_length, 
+                'action_freq': 12, 'init_state': 'ignored/dd.gb.state', 'max_steps': ep_length, 
                 'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
                 'gb_path': 'ignored/dd.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0, 'extra_buttons': True
             }
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     env = make_env(0, env_config)() #SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
     
     #env_checker.check_env(env)
-    file_name = 'sessions/session_9ac491c9/dd_524288_steps'
+    file_name = 'session_e8165951/dd_46399488_steps'
     
     print('\nloading checkpoint')
     model = PPO.load(file_name, env=env, custom_objects={'lr_schedule': 0, 'clip_range': 0})
