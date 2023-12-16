@@ -9,6 +9,8 @@ from skimage.transform import resize
 from pyboy import PyBoy
 from pyboy.logger import log_level
 import pandas as pd
+from pathlib import Path
+import mediapy as media
 
 from gymnasium import Env, spaces
 from pyboy.utils import WindowEvent
@@ -31,6 +33,7 @@ class DDEnv(Env):
 
         self.debug = config['debug']
         self.s_path = config['session_path']
+        self.gb_path = config['gb_path']
         self.save_final_state = config['save_final_state']
         self.print_rewards = config['print_rewards']
         self.vec_dim = 42*42*3 #4320 #1000
@@ -48,7 +51,8 @@ class DDEnv(Env):
         self.similar_frame_dist = config['sim_frame_dist']
         self.reset_count = 0
         self.instance_id = str(uuid.uuid4())[:8]
-        self.s_path.mkdir(exist_ok=True)
+        Path(self.s_path).mkdir(parents=True, exist_ok=True)
+
         self.all_runs = []
         self.old_pos = []
 
@@ -101,7 +105,7 @@ class DDEnv(Env):
 
         
         self.pyboy = PyBoy(
-                "ignored/"+filename,
+                self.gb_path,
                 debugging=True,
                 disable_input=False,
                 window_type=head,
@@ -120,15 +124,35 @@ class DDEnv(Env):
         with open(self.init_state, "rb") as f:
             self.pyboy.load_state(f)
 
+        if self.save_video:
+            base_dir = self.s_path / Path('rollouts')
+            base_dir.mkdir(exist_ok=True)
+            full_name = Path(f'full_reset_{self.reset_count}_id{self.instance_id}').with_suffix('.mp4')
+            model_name = Path(f'model_reset_{self.reset_count}_id{self.instance_id}').with_suffix('.mp4')
+            self.full_frame_writer = media.VideoWriter(base_dir / full_name, (144, 160), fps=60)
+            self.full_frame_writer.__enter__()
+            #self.model_frame_writer = media.VideoWriter(base_dir / model_name, self.output_full[:2], fps=60)
+            #self.model_frame_writer.__enter__()
+
         self.levels_satisfied = False
         self.base_explore = 0
         self.last_lives = 3
+        self.levels = 0
         self.total_lives_rew = 3
         self.last_score = 0
         self.last_level = 0
         self.total_score_rew = 0
         self.step_count = 0
         self.reset_count += 1
+        self.locations = {
+            1: False,
+            2: False,
+            3: False,
+            4: False,
+            5: False,
+            6: False,
+            7: False,
+        }
         return self.render(), {}
     
     def render(self, reduce_res=True):
@@ -145,7 +169,9 @@ class DDEnv(Env):
 
         step_limit_reached = self.check_if_done()
         if step_limit_reached:
-            print("DEATH")
+            print("INSTANCE:"+str(self.instance_id))
+            print("FINAL SCORE:"+str(self.total_score_rew))
+            print("FINAL LEVEL:"+str(self.levels))
 
         return obs_memory, new_reward*0.1, False, step_limit_reached, {}
     
@@ -171,9 +197,16 @@ class DDEnv(Env):
                     self.pyboy.send_input(self.release_button[action - 4])
                 if self.valid_actions[action] == WindowEvent.PRESS_BUTTON_START:
                     self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_START)
-
+            if self.save_video and not self.fast_video:
+                self.add_video_frame()
             self.pyboy.tick()
+        if self.save_video and self.fast_video:
+            self.add_video_frame()
     
+    def add_video_frame(self):
+        self.full_frame_writer.add_image(self.render(reduce_res=False))
+        #self.model_frame_writer.add_image(self.render(reduce_res=True))
+
     def get_score(self):
         scoreArray = [PyBoy.get_memory_value(self.pyboy,0xC645), PyBoy.get_memory_value(self.pyboy,0xC644), PyBoy.get_memory_value(self.pyboy,0xC643), PyBoy.get_memory_value(self.pyboy,0xC642), PyBoy.get_memory_value(self.pyboy,0xC641), PyBoy.get_memory_value(self.pyboy,0xC640)]
         scoreText = "".join(str(x) for x in scoreArray)
@@ -192,14 +225,14 @@ class DDEnv(Env):
     
     def get_position_reward(self):
         pos = self.get_screen_position()
-        if self.step_count % 10 == 0:
-            if pos == self.old_pos:
-                self.old_pos = pos
-                return -1
-            else:
-                self.old_pos = pos
-                return 1
+        if pos != self.old_pos:
+            self.old_pos = pos
+            return 1
+        elif self.step_count % 10 == 0:
+            self.old_pos = pos
+            return -5
         else:
+            self.old_pos = pos
             return 0
 
 
@@ -214,10 +247,35 @@ class DDEnv(Env):
             return 0
     
     def get_level_reward(self):
-        new_level = self.get_score()
-        if self.last_level != new_level:
-            self.last_level = new_level
-            return 150
+        new_level = self.get_level()
+        if self.last_level != new_level: # Not sure if it's part of the gameboy or just a bug but the game shuffles between a few levels when moving to a new level, so there's a need to call out the specific level
+            if new_level == 15 and self.locations[1] == False: # starting level
+                self.locations[1] = True
+                self.last_level = new_level
+                self.levels+=1
+                return 0
+            elif new_level == 84 and self.locations[2] == False: # starting level
+                self.locations[2] = True
+                self.levels+=1
+                self.last_level = new_level
+                return 500
+            elif new_level == 48 and self.locations[3] == False: # starting level
+                self.locations[3] = True
+                self.levels+=1
+                self.last_level = new_level
+                return 1000            
+            elif new_level == 89 and self.locations[4] == False: # starting level
+                self.locations[4] = True
+                self.levels+=1
+                self.last_level = new_level
+                return 3000
+            elif new_level == 11 and self.locations[5] == False: # starting level
+                self.locations[5] = True
+                self.levels+=1
+                self.last_level = new_level
+                return 5000
+            else:
+                return 0
         else:
             return 0
 
@@ -249,13 +307,13 @@ class DDEnv(Env):
             'level': int(self.get_level_reward()),
         }
 
-        if print_stats and self.step_count % 20 == 0:
-            print("CURRENT SCORE:"+str(self.total_score_rew))
-        
         return state_scores
     
     def check_if_done(self):
-        if self.total_lives_rew == 0:
-            return True
+        done = False
         done = self.step_count >= self.max_steps
+        if self.total_lives_rew == 0:
+            done = True
+        if self.save_video and done:
+            self.full_frame_writer.close()
         return done

@@ -33,14 +33,14 @@ if __name__ == '__main__':
                 'headless': False, 'save_final_state': True, 'early_stop': False,
                 'action_freq': 12, 'init_state': 'ignored/dd.gb.state', 'max_steps': ep_length, 
                 'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
-                'gb_path': 'ignored/dd.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0, 'extra_buttons': True
+                'gb_path': 'dd.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0, 'extra_buttons': True
             }
     
-    num_cpu = 1 #64 #46  # Also sets the number of episodes per training iteration
+    num_cpu = 1 #64 /#46  # Also sets the number of episodes per training iteration
     env = make_env(0, env_config)() #SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
     
     #env_checker.check_env(env)
-    file_name = 'session_e8165951/dd_46399488_steps'
+    file_name = 'session_886f1c20/dd_58122240_steps'
     
     print('\nloading checkpoint')
     model = PPO.load(file_name, env=env, custom_objects={'lr_schedule': 0, 'clip_range': 0})
