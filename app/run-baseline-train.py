@@ -32,20 +32,20 @@ if __name__ == '__main__':
     env_config = {
                 'headless': True, 'save_final_state': True, 'early_stop': False,
                 'action_freq': 9, 'init_state': 'ignored/dd.gb.state', 'max_steps': ep_length, 
-                'print_rewards': True, 'save_video': True, 'fast_video': True, 'session_path': sess_path,
-                'gb_path': '../ignored/dd.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0, 
+                'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
+                'gb_path': 'ignored/dd.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0, 
                 'use_screen_explore': True, 'extra_buttons': False
             }
     
     
-    num_cpu = 22 #64 #46  # Also sets the number of episodes per training iteration
+    num_cpu = 40 #64 #46  # Also sets the number of episodes per training iteration
     env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
     
     checkpoint_callback = CheckpointCallback(save_freq=ep_length, save_path=sess_path,
                                      name_prefix='dd')
     #env_checker.check_env(env)
     learn_steps = 40
-    file_name = '../sessions/boss_beat_lvl4/latest-lvl4-mission-2'
+    file_name = ''
     
     if exists(file_name + '.zip'):
         print('\nloading checkpoint')
@@ -57,7 +57,7 @@ if __name__ == '__main__':
         model.rollout_buffer.reset()
     else:
         print("Knowledge is power")
-        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, batch_size=512, n_epochs=1, gamma=0.800)
+        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, batch_size=512, n_epochs=1, gamma=0.999)
     
     for i in range(learn_steps):
         print("learning :)")
