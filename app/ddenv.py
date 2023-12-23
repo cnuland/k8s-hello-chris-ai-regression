@@ -87,21 +87,20 @@ class DDEnv(Env):
             WindowEvent.RELEASE_BUTTON_B
         ]
 
-        self.output_shape = (42,42,3)#(36, 40, 3)
+        self.output_shape = (36, 40, 3)
         self.mem_padding = 2
         self.memory_height = 8
         self.col_steps = 16
         self.output_full = (
             self.output_shape[0] * self.frame_stacks + 2 * (self.mem_padding + self.memory_height),
                             self.output_shape[1],
-                            self.output_shape[2]
-        )
+                            self.output_shape[2])
 
         head = 'headless' if config['headless'] else 'SDL2'
 
          # Set these in ALL subclasses
         self.action_space = spaces.Discrete(len(self.valid_actions))
-        self.observation_space = spaces.Box(low=0, high=255, shape=self.output_shape, dtype=np.uint8)
+        self.observation_space = spaces.Box(low=0, high=255, shape=self.output_full, dtype=np.uint8)
 
         
         self.pyboy = PyBoy(
@@ -134,6 +133,13 @@ class DDEnv(Env):
             #self.model_frame_writer = media.VideoWriter(base_dir / model_name, self.output_full[:2], fps=60)
             #self.model_frame_writer.__enter__()
 
+        self.recent_frames = np.zeros(
+            (self.frame_stacks, self.output_shape[0], 
+             self.output_shape[1], self.output_shape[2]),
+            dtype=np.uint8)
+        
+        self.recent_memory = np.zeros((self.output_shape[1]*self.memory_height, 3), dtype=np.uint8)
+
         self.levels_satisfied = False
         self.base_explore = 0
         self.last_lives = 3
@@ -143,6 +149,7 @@ class DDEnv(Env):
         self.last_level = 0
         self.total_score_rew = 0
         self.step_count = 0
+        self.movement_reward = 0
         self.reset_count += 1
         self.locations = {
             1: False,
@@ -153,19 +160,44 @@ class DDEnv(Env):
             6: False,
             7: False,
         }
+
+        self.progress_reward = self.get_game_state_reward()
+        self.total_reward = sum([val for _, val in self.progress_reward.items()])
         return self.render(), {}
     
-    def render(self, reduce_res=True):
+    def render(self, reduce_res=True, add_memory=True, update_mem=True):
         game_pixels_render = self.screen.screen_ndarray() # (144, 160, 3)
         if reduce_res:
             game_pixels_render = (255*resize(game_pixels_render, self.output_shape)).astype(np.uint8)
+            if update_mem:
+                self.recent_frames[0] = game_pixels_render
+            if add_memory:
+                pad = np.zeros(
+                    shape=(self.mem_padding, self.output_shape[1], 3), 
+                    dtype=np.uint8)
+                game_pixels_render = np.concatenate(
+                    (
+                        self.create_exploration_memory(), 
+                        pad,
+                        self.create_recent_memory(),
+                        pad,
+                        rearrange(self.recent_frames, 'f h w c -> (f h) w c')
+                    ),
+                    axis=0)
         return game_pixels_render
-    
     def step(self, action):
         self.run_action_on_emulator(action)
+        self.recent_frames = np.roll(self.recent_frames, 1, axis=0)
         obs_memory = self.render()
-        new_reward = self.update_reward()
         self.step_count += 1
+
+        new_reward, new_prog = self.update_reward()
+        
+        # shift over short term reward memory
+        self.recent_memory = np.roll(self.recent_memory, 3)
+        self.recent_memory[0, 0] = min(new_prog[0] * 64, 255)
+        self.recent_memory[0, 1] = min(new_prog[1] * 64, 255)
+        self.recent_memory[0, 2] = min(new_prog[2] * 128, 255)
 
         step_limit_reached = self.check_if_done()
         if step_limit_reached:
@@ -203,6 +235,12 @@ class DDEnv(Env):
         if self.save_video and self.fast_video:
             self.add_video_frame()
     
+    def create_recent_memory(self):
+        return rearrange(
+            self.recent_memory, 
+            '(w h) c -> h w c', 
+            h=self.memory_height)
+     
     def add_video_frame(self):
         self.full_frame_writer.add_image(self.render(reduce_res=False))
         #self.model_frame_writer.add_image(self.render(reduce_res=True))
@@ -227,10 +265,15 @@ class DDEnv(Env):
         pos = self.get_screen_position()
         if pos != self.old_pos:
             self.old_pos = pos
-            return 1
+            self.movement_reward += 1
+            if self.movement_reward == 5:
+                self.movement_reward == 0
+                return 1
+            else:
+                return 0
         elif self.step_count % 10 == 0:
             self.old_pos = pos
-            return -5
+            return -1
         else:
             self.old_pos = pos
             return 0
@@ -258,22 +301,22 @@ class DDEnv(Env):
                 self.locations[2] = True
                 self.levels+=1
                 self.last_level = new_level
-                return 500
+                return 5
             elif new_level == 48 and self.locations[3] == False: # starting level
                 self.locations[3] = True
                 self.levels+=1
                 self.last_level = new_level
-                return 1000            
+                return 10          
             elif new_level == 89 and self.locations[4] == False: # starting level
                 self.locations[4] = True
                 self.levels+=1
                 self.last_level = new_level
-                return 3000
+                return 20
             elif new_level == 11 and self.locations[5] == False: # starting level
                 self.locations[5] = True
                 self.levels+=1
                 self.last_level = new_level
-                return 5000
+                return 30
             else:
                 return 0
         else:
@@ -286,23 +329,71 @@ class DDEnv(Env):
             self.last_health = self.total_lives_rew
             self.total_lives_rew = new_lives
             if new_lives == 0: # putting this here because we need to update the lives for other functions
-                return -10 # Let's make dying bad
+                return -5 # Let's make dying bad
             return difference
         else:
             return 0
     
+
+
     def update_reward(self):
         # compute reward
+        old_prog = self.group_rewards()
         self.progress_reward = self.get_game_state_reward()
+        new_prog = self.group_rewards()
         new_total = sum([val for _, val in self.progress_reward.items()]) #sqrt(self.explore_reward * self.progress_reward)
-        return new_total
+        new_step = new_total - self.total_reward
+    
+        self.total_reward = new_total
+        return (new_step, 
+                   (new_prog[0]-old_prog[0], 
+                    new_prog[1]-old_prog[1], 
+                    new_prog[2]-old_prog[2])
+               )
 
+    def group_rewards(self):
+        prog = self.progress_reward
+        # these values are only used by memory
+        return (
+            prog['score'],
+            prog['pos'],
+            prog['level'])
+
+    def create_exploration_memory(self):
+        w = self.output_shape[1]
+        h = self.memory_height
+        
+        def make_reward_channel(r_val):
+            col_steps = self.col_steps
+            max_r_val = (w-1) * h * col_steps
+            # truncate progress bar. if hitting this
+            # you should scale down the reward in group_rewards!
+            r_val = min(r_val, max_r_val)
+            row = floor(r_val / (h * col_steps))
+            memory = np.zeros(shape=(h, w), dtype=np.uint8)
+            memory[:, :row] = 255
+            row_covered = row * h * col_steps
+            col = floor((r_val - row_covered) / col_steps)
+            memory[:col, row] = 255
+            col_covered = col * col_steps
+            last_pixel = floor(r_val - row_covered - col_covered) 
+            memory[col, row] = last_pixel * (255 // col_steps)
+            return memory
+        
+        score, pos, level = self.group_rewards()
+        full_memory = np.stack((
+            make_reward_channel(score),
+            make_reward_channel(pos),
+             make_reward_channel(level)
+        ), axis=-1)
+
+        return full_memory       
 
     def get_game_state_reward(self, print_stats=True):
 
+        lives = self.get_lives_reward() # we aren't using it but its important to calculate to tell when the game is done
         state_scores = {
-            'lives': self.get_lives_reward() * 15,  
-            'score': int(self.get_score_reward() // 10),
+            'score': int(self.get_score_reward() // 30),
             'pos': int(self.get_position_reward()),
             'level': int(self.get_level_reward()),
         }

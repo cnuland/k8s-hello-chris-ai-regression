@@ -32,20 +32,20 @@ if __name__ == '__main__':
     env_config = {
                 'headless': True, 'save_final_state': True, 'early_stop': False,
                 'action_freq': 9, 'init_state': 'ignored/dd.gb.state', 'max_steps': ep_length, 
-                'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
+                'print_rewards': True, 'save_video': False, 'fast_video': False, 'session_path': sess_path,
                 'gb_path': 'ignored/dd.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0, 
                 'use_screen_explore': True, 'extra_buttons': False
             }
     
     
-    num_cpu = 40 #64 #46  # Also sets the number of episodes per training iteration
+    num_cpu = 16 #64 #46  # Also sets the number of episodes per training iteration
     env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
     
     checkpoint_callback = CheckpointCallback(save_freq=ep_length, save_path=sess_path,
                                      name_prefix='dd')
     #env_checker.check_env(env)
     learn_steps = 40
-    file_name = ''
+    file_name = '../sessions/lvl4_with_memory/dd_14745600_steps'
     
     if exists(file_name + '.zip'):
         print('\nloading checkpoint')
