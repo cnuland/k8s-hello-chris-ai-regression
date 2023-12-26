@@ -34,6 +34,7 @@ class DDEnv(Env):
         self.debug = config['debug']
         self.s_path = config['session_path']
         self.gb_path = config['gb_path']
+        print("path:"+self.gb_path)
         self.save_final_state = config['save_final_state']
         self.print_rewards = config['print_rewards']
         self.vec_dim = 42*42*3 #4320 #1000

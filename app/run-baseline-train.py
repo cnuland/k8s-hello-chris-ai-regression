@@ -45,11 +45,17 @@ if __name__ == '__main__':
                                      name_prefix='dd')
     #env_checker.check_env(env)
     learn_steps = 40
-    file_name = '../sessions/lvl4_with_memory/dd_14745600_steps'
+    file_name = '../sessions/lvl4_with_memory/dd_23592960_steps'
     
     if exists(file_name + '.zip'):
         print('\nloading checkpoint')
-        model = PPO.load(file_name, env=env)
+        custom_objects = {
+            "learning_rate": 0.00025,
+            "lr_schedule": lambda _: 0.0,
+            "clip_range": lambda _: 0.0,
+            "n_steps": ep_length
+        }
+        model = PPO.load(file_name, env=env, custom_objects = custom_objects)
         model.n_steps = ep_length
         model.n_envs = num_cpu
         model.rollout_buffer.buffer_size = ep_length
@@ -57,7 +63,7 @@ if __name__ == '__main__':
         model.rollout_buffer.reset()
     else:
         print("Knowledge is power")
-        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, batch_size=512, n_epochs=1, gamma=0.999)
+        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, batch_size=512, n_epochs=1, gamma=0.95)
     
     for i in range(learn_steps):
         print("learning :)")
