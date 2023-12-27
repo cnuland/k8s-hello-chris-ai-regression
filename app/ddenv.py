@@ -55,7 +55,7 @@ class DDEnv(Env):
         Path(self.s_path).mkdir(parents=True, exist_ok=True)
 
         self.all_runs = []
-        self.old_pos = []
+
 
         # Set this in SOME subclasses
         self.metadata = {"render.modes": []}
@@ -140,6 +140,9 @@ class DDEnv(Env):
             dtype=np.uint8)
         
         self.recent_memory = np.zeros((self.output_shape[1]*self.memory_height, 3), dtype=np.uint8)
+
+        self.old_x_pos = []
+        self.old_y_pos = []
 
         self.levels_satisfied = False
         self.base_explore = 0
@@ -253,8 +256,11 @@ class DDEnv(Env):
         return score
     
     #This function looks at the background and makes sure there are changes happening. Promotes that the AI keeps moving and doesn't get stuck
-    def get_screen_position(self):
+    def get_screen_x_position(self):
         return [PyBoy.get_memory_value(self.pyboy,0xE100), PyBoy.get_memory_value(self.pyboy,0xE101), PyBoy.get_memory_value(self.pyboy,0xE102), PyBoy.get_memory_value(self.pyboy,0xE103), PyBoy.get_memory_value(self.pyboy,0xE104), PyBoy.get_memory_value(self.pyboy,0xE105), PyBoy.get_memory_value(self.pyboy,0xE106), PyBoy.get_memory_value(self.pyboy,0xE107), PyBoy.get_memory_value(self.pyboy,0xE108), PyBoy.get_memory_value(self.pyboy,0xE109), PyBoy.get_memory_value(self.pyboy,0xE10A), PyBoy.get_memory_value(self.pyboy,0xE10B), PyBoy.get_memory_value(self.pyboy,0xE10C), PyBoy.get_memory_value(self.pyboy,0xE10D), PyBoy.get_memory_value(self.pyboy,0xE10E), PyBoy.get_memory_value(self.pyboy,0xE10F)]
+
+    def get_screen_y_position(self):
+        return [PyBoy.get_memory_value(self.pyboy,0xE210), PyBoy.get_memory_value(self.pyboy,0xE211), PyBoy.get_memory_value(self.pyboy,0xE212), PyBoy.get_memory_value(self.pyboy,0xE213), PyBoy.get_memory_value(self.pyboy,0xE214), PyBoy.get_memory_value(self.pyboy,0xE215), PyBoy.get_memory_value(self.pyboy,0xE216), PyBoy.get_memory_value(self.pyboy,0xE217), PyBoy.get_memory_value(self.pyboy,0xE218), PyBoy.get_memory_value(self.pyboy,0xE219), PyBoy.get_memory_value(self.pyboy,0xE21A), PyBoy.get_memory_value(self.pyboy,0xE21B), PyBoy.get_memory_value(self.pyboy,0xE21C), PyBoy.get_memory_value(self.pyboy,0xE21D), PyBoy.get_memory_value(self.pyboy,0xE21E), PyBoy.get_memory_value(self.pyboy,0xE21F)]
 
     def get_lives(self):
         return PyBoy.get_memory_value(self.pyboy,0xC499)
@@ -263,9 +269,11 @@ class DDEnv(Env):
         return PyBoy.get_memory_value(self.pyboy,0xE110)
     
     def get_position_reward(self):
-        pos = self.get_screen_position()
-        if pos != self.old_pos:
-            self.old_pos = pos
+        pos_x = self.get_screen_x_position()
+        pos_y = self.get_screen_y_position()
+        if pos_x != self.old_x_pos or pos_y != self.old_y_pos:
+            self.old_x_pos = pos_x
+            self.old_y_pos = pos_y
             self.movement_reward += 1
             if self.movement_reward == 5:
                 self.movement_reward == 0
@@ -273,10 +281,12 @@ class DDEnv(Env):
             else:
                 return 0
         elif self.step_count % 10 == 0:
-            self.old_pos = pos
+            self.old_x_pos = pos_x
+            self.old_y_pos = pos_y
             return -1
         else:
-            self.old_pos = pos
+            self.old_x_pos = pos_x
+            self.old_y_pos = pos_y
             return 0
 
 

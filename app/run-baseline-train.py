@@ -31,7 +31,7 @@ if __name__ == '__main__':
 
     env_config = {
                 'headless': True, 'save_final_state': True, 'early_stop': False,
-                'action_freq': 9, 'init_state': 'ignored/dd.gb.state', 'max_steps': ep_length, 
+                'action_freq': 9, 'init_state': 'ignored/lvl2-dd.gb.state', 'max_steps': ep_length, 
                 'print_rewards': True, 'save_video': False, 'fast_video': False, 'session_path': sess_path,
                 'gb_path': 'ignored/dd.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0, 
                 'use_screen_explore': True, 'extra_buttons': False
@@ -45,8 +45,7 @@ if __name__ == '__main__':
                                      name_prefix='dd')
     #env_checker.check_env(env)
     learn_steps = 40
-    file_name = '../sessions/lvl4_with_memory/dd_23592960_steps'
-    
+    file_name = '../sessions/lvl4_with_memory/'
     if exists(file_name + '.zip'):
         print('\nloading checkpoint')
         custom_objects = {
