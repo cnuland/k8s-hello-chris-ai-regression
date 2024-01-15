@@ -11,6 +11,7 @@ from pyboy.logger import log_level
 import pandas as pd
 from pathlib import Path
 import mediapy as media
+import random
 
 from gymnasium import Env, spaces
 from pyboy.utils import WindowEvent
@@ -40,7 +41,8 @@ class DDEnv(Env):
         self.vec_dim = 42*42*3 #4320 #1000
         self.headless = config['headless']
         self.num_elements = 20000 # max
-        self.init_state = config['init_state']
+        self.init_state_array = config['init_state']
+        self.init_state = ""
         self.act_freq = config['action_freq']
         self.max_steps = config['max_steps']
         self.early_stopping = config['early_stop']
@@ -68,6 +70,8 @@ class DDEnv(Env):
             WindowEvent.PRESS_ARROW_UP,
             WindowEvent.PRESS_BUTTON_A,
             WindowEvent.PRESS_BUTTON_B,
+            97,
+            98,
             99, # A and B for the jump kick
         ]
         
@@ -101,7 +105,7 @@ class DDEnv(Env):
 
          # Set these in ALL subclasses
         self.action_space = spaces.Discrete(len(self.valid_actions))
-        self.observation_space = spaces.Box(low=0, high=255, shape=self.output_full, dtype=np.uint8)
+        self.observation_space = spaces.Box(low=0, high=255, shape=self.output_shape, dtype=np.uint8)
 
         
         self.pyboy = PyBoy(
@@ -121,6 +125,7 @@ class DDEnv(Env):
 
     def reset(self, *, seed=None, options=None):
         # restart game, skipping credits
+        self.init_state = random.choice(self.init_state_array)
         with open(self.init_state, "rb") as f:
             self.pyboy.load_state(f)
 
@@ -149,8 +154,9 @@ class DDEnv(Env):
         self.last_lives = 3
         self.levels = 0
         self.total_lives_rew = 3
-        self.last_score = 0
         self.last_level = 0
+        # sometimes we will start the model at different points of the game where we need to load an existing score
+        self.last_score = self.get_score()
         self.total_score_rew = 0
         self.step_count = 0
         self.movement_reward = 0
@@ -169,7 +175,7 @@ class DDEnv(Env):
         self.total_reward = sum([val for _, val in self.progress_reward.items()])
         return self.render(), {}
     
-    def render(self, reduce_res=True, add_memory=True, update_mem=True):
+    def render(self, reduce_res=True, add_memory=False, update_mem=False):
         game_pixels_render = self.screen.screen_ndarray() # (144, 160, 3)
         if reduce_res:
             game_pixels_render = (255*resize(game_pixels_render, self.output_shape)).astype(np.uint8)
@@ -206,8 +212,9 @@ class DDEnv(Env):
         step_limit_reached = self.check_if_done()
         if step_limit_reached:
             print("INSTANCE:"+str(self.instance_id))
+            print("STARTING LEVEL:"+self.init_state)
             print("FINAL SCORE:"+str(self.total_score_rew))
-            print("FINAL LEVEL:"+str(self.levels))
+            print("LEVELS FINISHED:"+str(self.levels))
 
         return obs_memory, new_reward*0.1, False, step_limit_reached, {}
     
@@ -217,6 +224,24 @@ class DDEnv(Env):
             self.pyboy.send_input(WindowEvent.PRESS_BUTTON_A)
             self.pyboy.send_input(WindowEvent.PRESS_BUTTON_B)
             self.pyboy.tick()
+            self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_A)
+            self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_B)
+            return
+        elif self.valid_actions[action] == 97:
+            #self.pyboy.send_input(WindowEvent.PRESS_ARROW_LEFT)
+            self.pyboy.send_input(WindowEvent.PRESS_BUTTON_A)
+            self.pyboy.send_input(WindowEvent.PRESS_BUTTON_B)
+            self.pyboy.tick()
+            #self.pyboy.send_input(WindowEvent.RELEASE_ARROW_LEFT)
+            self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_A)
+            self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_B)
+            return
+        elif self.valid_actions[action] == 98:
+            #self.pyboy.send_input(WindowEvent.PRESS_ARROW_RIGHT)
+            self.pyboy.send_input(WindowEvent.PRESS_BUTTON_A)
+            self.pyboy.send_input(WindowEvent.PRESS_BUTTON_B)
+            self.pyboy.tick()
+            #self.pyboy.send_input(WindowEvent.RELEASE_ARROW_RIGHT)
             self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_A)
             self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_B)
             return
@@ -271,20 +296,15 @@ class DDEnv(Env):
     def get_position_reward(self):
         pos_x = self.get_screen_x_position()
         pos_y = self.get_screen_y_position()
-        if pos_x != self.old_x_pos or pos_y != self.old_y_pos:
+        if pos_x != self.old_x_pos or pos_y != self.old_y_pos: # Moving into a new frame, add a positioning reward
             self.old_x_pos = pos_x
             self.old_y_pos = pos_y
-            self.movement_reward += 1
-            if self.movement_reward == 5:
-                self.movement_reward == 0
-                return 1
-            else:
-                return 0
-        elif self.step_count % 10 == 0:
+            return 1
+        elif self.step_count % 5 == 0: # Just standing around, give a penality
             self.old_x_pos = pos_x
             self.old_y_pos = pos_y
             return -1
-        else:
+        else: # No new frame but not standing around yet
             self.old_x_pos = pos_x
             self.old_y_pos = pos_y
             return 0
@@ -294,8 +314,8 @@ class DDEnv(Env):
         new_score = self.get_score()
         if self.last_score != new_score:
             difference = new_score - self.last_score
-            self.last_score = self.total_score_rew
-            self.total_score_rew = new_score
+            self.last_score = new_score
+            self.total_score_rew += difference
             return difference
         else:
             return 0
@@ -312,12 +332,12 @@ class DDEnv(Env):
                 self.locations[2] = True
                 self.levels+=1
                 self.last_level = new_level
-                return 5
+                return 20
             elif new_level == 48 and self.locations[3] == False: # starting level
                 self.locations[3] = True
                 self.levels+=1
                 self.last_level = new_level
-                return 10          
+                return 20          
             elif new_level == 89 and self.locations[4] == False: # starting level
                 self.locations[4] = True
                 self.levels+=1
@@ -327,7 +347,7 @@ class DDEnv(Env):
                 self.locations[5] = True
                 self.levels+=1
                 self.last_level = new_level
-                return 30
+                return 20
             else:
                 return 0
         else:
@@ -340,7 +360,7 @@ class DDEnv(Env):
             self.last_health = self.total_lives_rew
             self.total_lives_rew = new_lives
             if new_lives == 0: # putting this here because we need to update the lives for other functions
-                return -5 # Let's make dying bad
+                return 0 # Let's make dying bad
             return difference
         else:
             return 0
@@ -359,7 +379,9 @@ class DDEnv(Env):
         return (new_step, 
                    (new_prog[0]-old_prog[0], 
                     new_prog[1]-old_prog[1], 
-                    new_prog[2]-old_prog[2])
+                    new_prog[2]-old_prog[2],
+                    new_prog[3]-old_prog[3],
+                    )
                )
 
     def group_rewards(self):
@@ -368,7 +390,8 @@ class DDEnv(Env):
         return (
             prog['score'],
             prog['pos'],
-            prog['level'])
+            prog['level'],
+            prog['lives'])
 
     def create_exploration_memory(self):
         w = self.output_shape[1]
@@ -385,28 +408,29 @@ class DDEnv(Env):
             memory[:, :row] = 255
             row_covered = row * h * col_steps
             col = floor((r_val - row_covered) / col_steps)
-            memory[:col, row] = 255
+            if (col >= 0) and (row >= 0):
+                memory[:col, row] = 255
             col_covered = col * col_steps
             last_pixel = floor(r_val - row_covered - col_covered) 
             memory[col, row] = last_pixel * (255 // col_steps)
             return memory
         
-        score, pos, level = self.group_rewards()
+        score, pos, level, lives = self.group_rewards()
         full_memory = np.stack((
             make_reward_channel(score),
             make_reward_channel(pos),
-             make_reward_channel(level)
+            make_reward_channel(lives)
         ), axis=-1)
 
         return full_memory       
 
     def get_game_state_reward(self, print_stats=True):
 
-        lives = self.get_lives_reward() # we aren't using it but its important to calculate to tell when the game is done
         state_scores = {
-            'score': int(self.get_score_reward() // 30),
+            'score': int(self.get_score_reward() // 50),
             'pos': int(self.get_position_reward()),
             'level': int(self.get_level_reward()),
+            'lives': int(self.get_lives_reward() * 10)
         }
 
         return state_scores

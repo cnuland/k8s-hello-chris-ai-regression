@@ -61,7 +61,7 @@ def make_script(path):
     sess_dir = path
     print(f"generating grid script for {sess_dir.name}")
     rollout_dir = sess_dir / "rollouts"
-    all_files = list(rollout_dir.glob("full_reset_9*.mp4"))
+    all_files = list(rollout_dir.glob("full_reset_3*.mp4"))
     return run_ffmpeg_grid(
         (sess_dir / sess_dir.name).with_suffix('.mp4'), all_files, 
         "160x144", "1280x720", 8, 5, short_test=False)

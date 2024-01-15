@@ -26,15 +26,15 @@ def make_env(rank, env_conf, seed=0):
 
 def run_save(save):
     save = Path(save)
-    ep_length = 2048 * 30
+    ep_length = 2048 * 12
     sess_path = f'grid_renders/session_{save.stem}'
     env_config = {
                 'headless': True, 'save_final_state': True, 'early_stop': False,
-                'action_freq': 9, 'init_state': 'ignored/dd.gb.state', 'max_steps': ep_length, 
+                'action_freq': 9, 'init_state': ["ignored/dd.gb.state", "ignored/lvl2-dd.gb.state", "ignored/lvl3-dd.gb.state", "ignored/lvl3.5-dd.gb.state","ignored/lvl-1.5.dd.gb.state"], 'max_steps': ep_length, 
                 'print_rewards': True, 'save_video': True, 'fast_video': False, 'session_path': sess_path,
                 'gb_path': 'ignored/dd.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0
             }
-    num_cpu = 20  # Also sets the number of episodes per training iteration
+    num_cpu = 15  # Also sets the number of episodes per training iteration
     env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
 
     checkpoint_callback = CheckpointCallback(save_freq=ep_length, save_path=sess_path,
