@@ -332,22 +332,22 @@ class DDEnv(Env):
                 self.locations[2] = True
                 self.levels+=1
                 self.last_level = new_level
-                return 20
+                return 30
             elif new_level == 48 and self.locations[3] == False: # starting level
                 self.locations[3] = True
                 self.levels+=1
                 self.last_level = new_level
-                return 20          
+                return 40         
             elif new_level == 89 and self.locations[4] == False: # starting level
                 self.locations[4] = True
                 self.levels+=1
                 self.last_level = new_level
-                return 20
+                return 50
             elif new_level == 11 and self.locations[5] == False: # starting level
                 self.locations[5] = True
                 self.levels+=1
                 self.last_level = new_level
-                return 20
+                return 60
             else:
                 return 0
         else:
@@ -360,7 +360,7 @@ class DDEnv(Env):
             self.last_health = self.total_lives_rew
             self.total_lives_rew = new_lives
             if new_lives == 0: # putting this here because we need to update the lives for other functions
-                return 0 # Let's make dying bad
+                return -2 # Let's make dying bad
             return difference
         else:
             return 0
