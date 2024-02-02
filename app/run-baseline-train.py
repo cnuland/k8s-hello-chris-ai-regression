@@ -48,7 +48,7 @@ def make_env(rank, env_conf, seed=0):
 if __name__ == '__main__':
 
 
-    ep_length = 2048 * 36
+    ep_length = 2048 * 30
     sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
 # all levels ["ignored/dd.gb.state", "ignored/lvl2-dd.gb.state", "ignored/lvl3-dd.gb.state", "ignored/lvl3.5-dd.gb.state","ignored/lvl-1.5.dd.gb.state"]
     env_config = {
@@ -60,27 +60,29 @@ if __name__ == '__main__':
             }
     
     
-    num_cpu = 40 #64 #46  # Also sets the number of episodes per training iteration
+    num_cpu = 50 #64 #46  # Also sets the number of episodes per training iteration
     env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
 
     checkpoint_callback = CheckpointCallback(save_freq=ep_length, save_path=sess_path,
                                      name_prefix='dd')
     #env_checker.check_env(env)
-    file_name = '../sessions/random_lvls/dd_20643840_steps'
+    file_name = '../sessions/no_points_reward/dd_36864000_steps'
     if exists(file_name + '.zip'):
         print('\nloading checkpoint')
         model = PPO.load(file_name, env=env, device="mps", tensorboard_log="./double_dragon_logs/")
         model.n_steps = ep_length
-        model.ent_coef = 0.01
+        model.ent_coef = 0.05
         model.learning_rate = linear_schedule(0.001)
         model.n_envs = num_cpu
         model.rollout_buffer.buffer_size = ep_length
         model.rollout_buffer.n_envs = num_cpu
         model.verbose = 1
+        model.gamma = 0.977
+        model.n_epochs = 3
         model.batch_size = 512
         model.rollout_buffer.reset()
     else:
         print("Knowledge is power")
-        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, ent_coef = 0.005, learning_rate=linear_schedule(0.001), batch_size=512, n_epochs=3, gamma=0.977, device = "mps", tensorboard_log="./double_dragon_logs/")
+        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, ent_coef = 0.05, learning_rate=linear_schedule(0.001), batch_size=512, n_epochs=3, gamma=0.977, device = "mps", tensorboard_log="./double_dragon_logs/")
 
     model.learn(total_timesteps=(ep_length)*num_cpu*1000, callback=checkpoint_callback)

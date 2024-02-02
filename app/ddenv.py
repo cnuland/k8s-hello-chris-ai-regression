@@ -110,7 +110,7 @@ class DDEnv(Env):
         
         self.pyboy = PyBoy(
                 self.gb_path,
-                debugging=True,
+                debugging=False,
                 disable_input=False,
                 window_type=head,
                 hide_window='--quiet' in sys.argv,     
@@ -120,7 +120,7 @@ class DDEnv(Env):
         self.screen = self.pyboy.botsupport_manager().screen()
 
         if not config['headless']:
-            self.pyboy.set_emulation_speed(6)
+            self.pyboy.set_emulation_speed(0)
         print("Lets get this party started")
 
     def reset(self, *, seed=None, options=None):
@@ -148,6 +148,8 @@ class DDEnv(Env):
 
         self.old_x_pos = []
         self.old_y_pos = []
+        self.visited_x = []
+        self.visited_y = []
 
         self.levels_satisfied = False
         self.base_explore = 0
@@ -197,17 +199,17 @@ class DDEnv(Env):
         return game_pixels_render
     def step(self, action):
         self.run_action_on_emulator(action)
-        self.recent_frames = np.roll(self.recent_frames, 1, axis=0)
+        #self.recent_frames = np.roll(self.recent_frames, 1, axis=0)
         obs_memory = self.render()
         self.step_count += 1
 
         new_reward, new_prog = self.update_reward()
         
         # shift over short term reward memory
-        self.recent_memory = np.roll(self.recent_memory, 3)
-        self.recent_memory[0, 0] = min(new_prog[0] * 64, 255)
-        self.recent_memory[0, 1] = min(new_prog[1] * 64, 255)
-        self.recent_memory[0, 2] = min(new_prog[2] * 128, 255)
+        #self.recent_memory = np.roll(self.recent_memory, 3)
+        #self.recent_memory[0, 0] = min(new_prog[0] * 64, 255)
+        #self.recent_memory[0, 1] = min(new_prog[1] * 64, 255)
+        #self.recent_memory[0, 2] = min(new_prog[2] * 128, 255)
 
         step_limit_reached = self.check_if_done()
         if step_limit_reached:
@@ -221,29 +223,29 @@ class DDEnv(Env):
     def run_action_on_emulator(self, action):
         # special move
         if self.valid_actions[action] == 99:
-            self.pyboy.send_input(WindowEvent.PRESS_BUTTON_A)
-            self.pyboy.send_input(WindowEvent.PRESS_BUTTON_B)
+            #self.pyboy.send_input(WindowEvent.PRESS_BUTTON_A)
+            #self.pyboy.send_input(WindowEvent.PRESS_BUTTON_B)
             self.pyboy.tick()
-            self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_A)
-            self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_B)
+            #self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_A)
+            #self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_B)
             return
         elif self.valid_actions[action] == 97:
             #self.pyboy.send_input(WindowEvent.PRESS_ARROW_LEFT)
-            self.pyboy.send_input(WindowEvent.PRESS_BUTTON_A)
-            self.pyboy.send_input(WindowEvent.PRESS_BUTTON_B)
+            #self.pyboy.send_input(WindowEvent.PRESS_BUTTON_A)
+            #self.pyboy.send_input(WindowEvent.PRESS_BUTTON_B)
             self.pyboy.tick()
             #self.pyboy.send_input(WindowEvent.RELEASE_ARROW_LEFT)
-            self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_A)
-            self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_B)
+            #self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_A)
+            #self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_B)
             return
         elif self.valid_actions[action] == 98:
             #self.pyboy.send_input(WindowEvent.PRESS_ARROW_RIGHT)
-            self.pyboy.send_input(WindowEvent.PRESS_BUTTON_A)
-            self.pyboy.send_input(WindowEvent.PRESS_BUTTON_B)
+            #self.pyboy.send_input(WindowEvent.PRESS_BUTTON_A)
+            #self.pyboy.send_input(WindowEvent.PRESS_BUTTON_B)
             self.pyboy.tick()
             #self.pyboy.send_input(WindowEvent.RELEASE_ARROW_RIGHT)
-            self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_A)
-            self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_B)
+            #self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_A)
+            #self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_B)
             return
         # press button then release after some steps
         self.pyboy.send_input(self.valid_actions[action])
@@ -299,15 +301,16 @@ class DDEnv(Env):
         if pos_x != self.old_x_pos or pos_y != self.old_y_pos: # Moving into a new frame, add a positioning reward
             self.old_x_pos = pos_x
             self.old_y_pos = pos_y
-            return 1
-        elif self.step_count % 5 == 0: # Just standing around, give a penality
+            if self.old_x_pos not in self.visited_x or self.old_y_pos not in self.visited_y:
+                self.visited_x.append(pos_x)
+                self.visited_y.append(pos_y)
+                return 5.0
+            else:
+                return 0
+        else:
             self.old_x_pos = pos_x
             self.old_y_pos = pos_y
-            return -1
-        else: # No new frame but not standing around yet
-            self.old_x_pos = pos_x
-            self.old_y_pos = pos_y
-            return 0
+            return -0.5
 
 
     def get_score_reward(self):
@@ -360,7 +363,7 @@ class DDEnv(Env):
             self.last_health = self.total_lives_rew
             self.total_lives_rew = new_lives
             if new_lives == 0: # putting this here because we need to update the lives for other functions
-                return -2 # Let's make dying bad
+                return -5 # Let's make dying bad
             return difference
         else:
             return 0
@@ -380,7 +383,7 @@ class DDEnv(Env):
                    (new_prog[0]-old_prog[0], 
                     new_prog[1]-old_prog[1], 
                     new_prog[2]-old_prog[2],
-                    new_prog[3]-old_prog[3],
+                    #new_prog[3]-old_prog[3],
                     )
                )
 
@@ -388,7 +391,7 @@ class DDEnv(Env):
         prog = self.progress_reward
         # these values are only used by memory
         return (
-            prog['score'],
+            #prog['score'],
             prog['pos'],
             prog['level'],
             prog['lives'])
@@ -425,10 +428,10 @@ class DDEnv(Env):
         return full_memory       
 
     def get_game_state_reward(self, print_stats=True):
-
+        self.get_score_reward() # I still want to see the score even if its not being used by the model
         state_scores = {
-            'score': int(self.get_score_reward() // 50),
-            'pos': int(self.get_position_reward()),
+            #'score': int(self.get_score_reward() // 30),
+            'pos': self.get_position_reward(),
             'level': int(self.get_level_reward()),
             'lives': int(self.get_lives_reward() * 10)
         }
