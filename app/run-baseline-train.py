@@ -10,6 +10,7 @@ from stable_baselines3.common.utils import set_random_seed
 from stable_baselines3.common.callbacks import CheckpointCallback
 from typing import Callable, Union
 
+
 def linear_schedule(initial_value: Union[float, str]) -> Callable[[float], float]:
     """
     Linear learning rate schedule.
@@ -50,26 +51,27 @@ if __name__ == '__main__':
 
     ep_length = 2048 * 30
     sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
-# all levels ["ignored/dd.gb.state", "ignored/lvl2-dd.gb.state", "ignored/lvl3-dd.gb.state", "ignored/lvl3.5-dd.gb.state","ignored/lvl-1.5.dd.gb.state"]
+
     env_config = {
                 'headless': True, 'save_final_state': True, 'early_stop': False,
-                'action_freq': 9, 'init_state': ["ignored/dd.gb.state"], 'max_steps': ep_length, 
+                'action_freq': 9, 'init_state': 'ignored/dd.gb.state', 'max_steps': ep_length, 
                 'print_rewards': True, 'save_video': False, 'fast_video': False, 'session_path': sess_path,
                 'gb_path': 'ignored/dd.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0, 
                 'use_screen_explore': True, 'extra_buttons': False
             }
     
     
-    num_cpu = 50 #64 #46  # Also sets the number of episodes per training iteration
+    num_cpu = 19 #64 #46  # Also sets the number of episodes per training iteration
     env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
-
+    
     checkpoint_callback = CheckpointCallback(save_freq=ep_length, save_path=sess_path,
                                      name_prefix='dd')
     #env_checker.check_env(env)
-    file_name = '../sessions/no_points_reward/dd_36864000_steps'
+    file_name = '../sessions/no_points_reward/dd_45527040_steps'
+    
     if exists(file_name + '.zip'):
         print('\nloading checkpoint')
-        model = PPO.load(file_name, env=env, device="mps", tensorboard_log="./double_dragon_logs/")
+        model = PPO.load(file_name, env=env, device="cpu", tensorboard_log="./double_dragon_logs/")
         model.n_steps = ep_length
         model.ent_coef = 0.05
         model.learning_rate = linear_schedule(0.001)
@@ -78,11 +80,10 @@ if __name__ == '__main__':
         model.rollout_buffer.n_envs = num_cpu
         model.verbose = 1
         model.gamma = 0.977
-        model.n_epochs = 3
         model.batch_size = 512
         model.rollout_buffer.reset()
     else:
         print("Knowledge is power")
-        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, ent_coef = 0.05, learning_rate=linear_schedule(0.001), batch_size=512, n_epochs=3, gamma=0.977, device = "mps", tensorboard_log="./double_dragon_logs/")
-
+        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, batch_size=512, n_epochs=1, gamma=0.999)
+    
     model.learn(total_timesteps=(ep_length)*num_cpu*1000, callback=checkpoint_callback)

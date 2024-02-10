@@ -31,7 +31,7 @@ if __name__ == '__main__':
 
     env_config = {
                 'headless': False, 'save_final_state': True, 'early_stop': False,
-                'action_freq': 9, 'init_state': ['ignored/dd.gb.state'], 'max_steps': ep_length, 
+                'action_freq': 9, 'init_state': 'ignored/dd.gb.state', 'max_steps': ep_length, 
                 'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
                 'gb_path': 'ignored/dd.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0, 'extra_buttons': True
             }
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     env = make_env(0, env_config)() #SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
     
     #env_checker.check_env(env)
-    file_name = '../sessions/random_lvls/dd_171048960_steps'
+    file_name = 'session_c55d8b61/dd_1167360_steps'
     
     print('\nloading checkpoint')
     model = PPO.load(file_name, env=env, custom_objects={'lr_schedule': 0, 'clip_range': 0})
