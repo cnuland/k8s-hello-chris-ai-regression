@@ -118,7 +118,7 @@ class DDEnv(Env):
         self.screen = self.pyboy.botsupport_manager().screen()
 
         if not config['headless']:
-            self.pyboy.set_emulation_speed(6)
+            self.pyboy.set_emulation_speed(20)
         print("Lets get this party started")
 
     def reset(self, *, seed=None, options=None):
@@ -225,7 +225,7 @@ class DDEnv(Env):
             self.pyboy.tick()
             self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_A)
             self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_B)
-            kick_penality = True
+            self.kick_penality = True
             return
         elif self.valid_actions[action] == 97:
             self.pyboy.send_input(WindowEvent.PRESS_ARROW_LEFT)
@@ -235,7 +235,7 @@ class DDEnv(Env):
             self.pyboy.send_input(WindowEvent.RELEASE_ARROW_LEFT)
             self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_A)
             self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_B)
-            kick_penality = True
+            self.kick_penality = True
 
             return
         elif self.valid_actions[action] == 98:
@@ -246,13 +246,13 @@ class DDEnv(Env):
             self.pyboy.send_input(WindowEvent.RELEASE_ARROW_RIGHT)
             self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_A)
             self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_B)
-            kick_penality = True
+            self.kick_penality = True
             return
         # press button then release after some steps
         self.pyboy.send_input(self.valid_actions[action])
         for i in range(self.act_freq):
             # release action, so they are stateless
-            if i == 8:
+            if i == 4:
                 if action < 4:
                     # release arrow
                     self.pyboy.send_input(self.release_arrow[action])
@@ -302,12 +302,7 @@ class DDEnv(Env):
         if pos_x != self.old_x_pos or pos_y != self.old_y_pos: # Moving into a new frame, add a positioning reward
             self.old_x_pos = pos_x
             self.old_y_pos = pos_y
-            if self.old_x_pos not in self.visited_x or self.old_y_pos not in self.visited_y:
-                self.visited_x.append(pos_x)
-                self.visited_y.append(pos_y)
-                return 3.0
-            else:
-                return 0
+            return 0.5
         else:
             self.old_x_pos = pos_x
             self.old_y_pos = pos_y
@@ -364,7 +359,7 @@ class DDEnv(Env):
             self.last_health = self.total_lives_rew
             self.total_lives_rew = new_lives
             if new_lives == 0: # putting this here because we need to update the lives for other functions
-                return -5 # Let's make dying bad
+                return -1 # Let's make dying bad
             return difference
         else:
             return 0
@@ -372,7 +367,7 @@ class DDEnv(Env):
     def get_moves_penality(self):
         if self.kick_penality:
             self.kick_penality = False
-            return -0.5 # Let's make dying bad
+            return -10 # Let's make dying bad
         else:
             return 0
 
@@ -389,16 +384,17 @@ class DDEnv(Env):
                    (new_prog[0]-old_prog[0], 
                     new_prog[1]-old_prog[1], 
                     new_prog[2]-old_prog[2],
-                    new_prog[3]-old_prog[3])
+                    new_prog[3]-old_prog[3],
+                    )
                )
 
     def group_rewards(self):
         prog = self.progress_reward
         # these values are only used by memory
         return (
+            prog['score'],
             prog['lives'],
             prog['pos'],
-            prog['moves'],
             prog['level'],
             )
 
@@ -423,24 +419,24 @@ class DDEnv(Env):
             memory[col, row] = last_pixel * (255 // col_steps)
             return memory
         
-        pos, level, moves, lives = self.group_rewards()
+        score, pos, level, lives = self.group_rewards()
         full_memory = np.stack((
             make_reward_channel(level),
             make_reward_channel(pos),
-            make_reward_channel(moves),
+            make_reward_channel(pos),
 
         ), axis=-1)
 
         return full_memory       
 
     def get_game_state_reward(self, print_stats=True):
-        score = self.get_score_reward()
+        #score = self.get_score_reward()
         #lives = self.get_lives_reward() # we aren't using it but its important to calculate to tell when the game is done
         state_scores = {
-            #'score': int(self.get_score_reward() // 30),
+            'score': int(self.get_score_reward() // 100),
             'pos': int(self.get_position_reward()),
             'level': int(self.get_level_reward()),
-            'lives': int(self.get_lives_reward()),
+            'lives': int(self.get_lives_reward()) * 5,
             'moves': int(self.get_moves_penality()),
         }
 
