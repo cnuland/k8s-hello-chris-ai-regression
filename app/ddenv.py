@@ -359,7 +359,7 @@ class DDEnv(Env):
             self.last_health = self.total_lives_rew
             self.total_lives_rew = new_lives
             if new_lives == 0: # putting this here because we need to update the lives for other functions
-                return -1 # Let's make dying bad
+                return -10 # Let's make dying bad
             return difference
         else:
             return 0
@@ -433,10 +433,10 @@ class DDEnv(Env):
         #score = self.get_score_reward()
         #lives = self.get_lives_reward() # we aren't using it but its important to calculate to tell when the game is done
         state_scores = {
-            'score': int(self.get_score_reward() // 100),
+            'score': int(self.get_score_reward() // 10),
             'pos': int(self.get_position_reward()),
             'level': int(self.get_level_reward()),
-            'lives': int(self.get_lives_reward()) * 5,
+            'lives': int(self.get_lives_reward()) * 15,
             'moves': int(self.get_moves_penality()),
         }
 
