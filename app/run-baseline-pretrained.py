@@ -40,7 +40,11 @@ if __name__ == '__main__':
     env = make_env(0, env_config)() #SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
     
     #env_checker.check_env(env)
+<<<<<<< HEAD
     file_name = 'session_00ada21d/dd_20480000_steps'
+=======
+    file_name = 'session_33f09586/dd_1310720_steps'
+>>>>>>> a76bb8beef9c1ff08fbb66e8b8a5a03794a385a9
     
     print('\nloading checkpoint')
     model = PPO.load(file_name, env=env, custom_objects={'lr_schedule': 0, 'clip_range': 0})

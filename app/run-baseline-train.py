@@ -50,7 +50,11 @@ def make_env(rank, env_conf, seed=0):
 if __name__ == '__main__':
 
 
+<<<<<<< HEAD
     ep_length = 2048 * 50
+=======
+    ep_length = 2048 * 32
+>>>>>>> a76bb8beef9c1ff08fbb66e8b8a5a03794a385a9
     sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
 
     env_config = {
@@ -62,13 +66,21 @@ if __name__ == '__main__':
             }
     
     
+<<<<<<< HEAD
     num_cpu = 24 #64 #46  # Also sets the number of episodes per training iteration
+=======
+    num_cpu = 20 #64 #46  # Also sets the number of episodes per training iteration
+>>>>>>> a76bb8beef9c1ff08fbb66e8b8a5a03794a385a9
     env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
     
     checkpoint_callback = CheckpointCallback(save_freq=ep_length, save_path=sess_path,
                                      name_prefix='dd')
     #env_checker.check_env(env)
+<<<<<<< HEAD
     file_name = 'session_40ef1fa0/dd_24576000_steps'
+=======
+    file_name = '../sessions/no_points_reward/'
+>>>>>>> a76bb8beef9c1ff08fbb66e8b8a5a03794a385a9
     
     if exists(file_name + '.zip'):
         print('\nloading checkpoint')
