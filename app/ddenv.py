@@ -11,6 +11,10 @@ from pyboy.logger import log_level
 import pandas as pd
 from pathlib import Path
 import mediapy as media
+from PIL import Image
+from collections import deque
+
+
 
 from gymnasium import Env, spaces
 from pyboy.utils import WindowEvent
@@ -67,10 +71,10 @@ class DDEnv(Env):
             WindowEvent.PRESS_ARROW_RIGHT,
             WindowEvent.PRESS_ARROW_UP,
             WindowEvent.PRESS_BUTTON_A,
-            WindowEvent.PRESS_BUTTON_B,
+            #WindowEvent.PRESS_BUTTON_B,
             97,
             98,
-            99, # A and B for the jump kick
+            #99, # A and B for the jump kick
         ]
         
         self.extra_buttons: [
@@ -87,7 +91,7 @@ class DDEnv(Env):
 
         self.release_button = [
             WindowEvent.RELEASE_BUTTON_A,
-            WindowEvent.RELEASE_BUTTON_B
+            #WindowEvent.RELEASE_BUTTON_B
         ]
 
         self.output_shape = (36, 40, 3)
@@ -103,7 +107,7 @@ class DDEnv(Env):
 
          # Set these in ALL subclasses
         self.action_space = spaces.Discrete(len(self.valid_actions))
-        self.observation_space = spaces.Box(low=0, high=255, shape=self.output_full, dtype=np.uint8)
+        self.observation_space = spaces.Box(low=0, high=255, shape=self.output_shape, dtype=np.uint8)
 
         
         self.pyboy = PyBoy(
@@ -136,11 +140,11 @@ class DDEnv(Env):
             #self.model_frame_writer = media.VideoWriter(base_dir / model_name, self.output_full[:2], fps=60)
             #self.model_frame_writer.__enter__()
 
-        self.recent_frames = np.zeros(
+        self.recent_frames = deque()
+        self.recent_frame = np.zeros(
             (self.frame_stacks, self.output_shape[0], 
              self.output_shape[1], self.output_shape[2]),
             dtype=np.uint8)
-        
         self.recent_memory = np.zeros((self.output_shape[1]*self.memory_height, 3), dtype=np.uint8)
 
         self.old_x_pos = []
@@ -173,12 +177,18 @@ class DDEnv(Env):
         self.total_reward = sum([val for _, val in self.progress_reward.items()])
         return self.render(), {}
     
-    def render(self, reduce_res=True, add_memory=True, update_mem=True):
+    def render(self, reduce_res=True, add_memory=False, update_mem=True):
         game_pixels_render = self.screen.screen_ndarray() # (144, 160, 3)
         if reduce_res:
             game_pixels_render = (255*resize(game_pixels_render, self.output_shape)).astype(np.uint8)
-            if update_mem:
-                self.recent_frames[0] = game_pixels_render
+            #self.recent_frames.append(game_pixels_render)
+            #self.recent_frame[0] = game_pixels_render
+
+            #if self.step_count < 4:
+            #    self.recent_frame[0] = game_pixels_render
+            #else:
+            #    self.recent_frame[0] = self.recent_frames.pop()
+                    
             if add_memory:
                 pad = np.zeros(
                     shape=(self.mem_padding, self.output_shape[1], 3), 
@@ -189,23 +199,23 @@ class DDEnv(Env):
                         pad,
                         self.create_recent_memory(),
                         pad,
-                        rearrange(self.recent_frames, 'f h w c -> (f h) w c')
+                        rearrange(self.recent_frame, 'f h w c -> (f h) w c')
                     ),
                     axis=0)
         return game_pixels_render
     def step(self, action):
         self.run_action_on_emulator(action)
-        self.recent_frames = np.roll(self.recent_frames, 1, axis=0)
+        self.recent_frame = np.roll(self.recent_frame, 1, axis=0)
         obs_memory = self.render()
         self.step_count += 1
 
         new_reward, new_prog = self.update_reward()
         
         # shift over short term reward memory
-        self.recent_memory = np.roll(self.recent_memory, 3)
-        self.recent_memory[0, 0] = min(new_prog[0] * 64, 255)
-        self.recent_memory[0, 1] = min(new_prog[1] * 64, 255)
-        self.recent_memory[0, 2] = min(new_prog[2] * 128, 255)
+        #self.recent_memory = np.roll(self.recent_memory, 3)
+        #self.recent_memory[0, 0] = min(new_prog[0] * 64, 255)
+        #self.recent_memory[0, 1] = min(new_prog[1] * 64, 255)
+        #self.recent_memory[0, 2] = min(new_prog[2] * 128, 255)
 
         step_limit_reached = self.check_if_done()
         if step_limit_reached:
@@ -214,7 +224,8 @@ class DDEnv(Env):
             print("FINAL LEVEL:"+str(self.levels))
             self.total_score_rew = 0 # needs to reset here as there are times the reset command has already started running before this goes, not sure why this is...
 
-
+        #img = Image.fromarray(obs_memory, 'RGB')
+        #img.save('data.png')
         return obs_memory, new_reward*0.1, False, step_limit_reached, {}
     
     def run_action_on_emulator(self, action):
@@ -252,13 +263,13 @@ class DDEnv(Env):
         self.pyboy.send_input(self.valid_actions[action])
         for i in range(self.act_freq):
             # release action, so they are stateless
-            if i == 4:
-                if action < 4:
-                    # release arrow
-                    self.pyboy.send_input(self.release_arrow[action])
+            if i == 7:
                 if action > 3 and action < 6:
                     # release button 
                     self.pyboy.send_input(self.release_button[action - 4])
+                if action < 4:
+                    # release arrow
+                    self.pyboy.send_input(self.release_arrow[action])
                 if self.valid_actions[action] == WindowEvent.PRESS_BUTTON_START:
                     self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_START)
             if self.save_video and not self.fast_video:
@@ -302,7 +313,7 @@ class DDEnv(Env):
         if pos_x != self.old_x_pos or pos_y != self.old_y_pos: # Moving into a new frame, add a positioning reward
             self.old_x_pos = pos_x
             self.old_y_pos = pos_y
-            return 0.5
+            return 1
         else:
             self.old_x_pos = pos_x
             self.old_y_pos = pos_y
@@ -336,17 +347,17 @@ class DDEnv(Env):
                 self.locations[3] = True
                 self.levels+=1
                 self.last_level = new_level
-                return 60         
+                return 100         
             elif new_level == 89 and self.locations[4] == False: # starting level
                 self.locations[4] = True
                 self.levels+=1
                 self.last_level = new_level
-                return 70
+                return 200
             elif new_level == 11 and self.locations[5] == False: # starting level
                 self.locations[5] = True
                 self.levels+=1
                 self.last_level = new_level
-                return 80
+                return 300
             else:
                 return 0
         else:
@@ -359,7 +370,7 @@ class DDEnv(Env):
             self.last_health = self.total_lives_rew
             self.total_lives_rew = new_lives
             if new_lives == 0: # putting this here because we need to update the lives for other functions
-                return -1 # Let's make dying bad
+                return -100 # Let's make dying bad
             return difference
         else:
             return 0
@@ -433,10 +444,10 @@ class DDEnv(Env):
         #score = self.get_score_reward()
         #lives = self.get_lives_reward() # we aren't using it but its important to calculate to tell when the game is done
         state_scores = {
-            'score': int(self.get_score_reward() // 100),
-            'pos': int(self.get_position_reward()),
-            'level': int(self.get_level_reward()),
-            'lives': int(self.get_lives_reward()) * 5,
+            'score': int(self.get_score_reward()  *  0.001),
+            'pos': int(self.get_position_reward() *  0.2 ),
+            'level': int(self.get_level_reward()  *  0.1),
+            'lives': int(self.get_lives_reward()  *  0.1),
             'moves': int(self.get_moves_penality()),
         }
 

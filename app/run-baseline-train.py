@@ -50,32 +50,32 @@ def make_env(rank, env_conf, seed=0):
 if __name__ == '__main__':
 
 
-    ep_length = 2048 * 40
+    ep_length = 2048 * 50
     sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
 
     env_config = {
                 'headless': True, 'save_final_state': True, 'early_stop': False,
-                'action_freq': 5, 'init_state': 'ignored/dd.gb.state', 'max_steps': ep_length, 
+                'action_freq': 8, 'init_state': 'ignored/dd.gb.state', 'max_steps': ep_length, 
                 'print_rewards': True, 'save_video': False, 'fast_video': False, 'session_path': sess_path,
                 'gb_path': 'ignored/dd.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0, 
                 'use_screen_explore': True, 'extra_buttons': False
             }
     
     
-    num_cpu = 12 #64 #46  # Also sets the number of episodes per training iteration
+    num_cpu = 24 #64 #46  # Also sets the number of episodes per training iteration
     env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
     
     checkpoint_callback = CheckpointCallback(save_freq=ep_length, save_path=sess_path,
                                      name_prefix='dd')
     #env_checker.check_env(env)
-    file_name = '../sessions/no_points_reward/dd_15728640_steps'
+    file_name = 'session_40ef1fa0/dd_24576000_steps'
     
     if exists(file_name + '.zip'):
         print('\nloading checkpoint')
         model = PPO.load(file_name, env=env, device="cpu", tensorboard_log="./double_dragon_logs/")
         model.n_steps = ep_length
         model.ent_coef = 0.05
-        model.learning_rate = linear_schedule(0.001)
+        model.learning_rate = linear_schedule(0.005)
         model.n_envs = num_cpu
         model.rollout_buffer.buffer_size = ep_length
         model.rollout_buffer.n_envs = num_cpu
@@ -85,6 +85,6 @@ if __name__ == '__main__':
         model.rollout_buffer.reset()
     else:
         print("Knowledge is power")
-        model = PPO('CnnPolicy', env, verbose=1, learning_rate = linear_schedule(0.001), n_steps=ep_length, batch_size=512, n_epochs=3, gamma=0.999)
+        model = PPO('CnnPolicy', env, verbose=1,n_steps=ep_length, batch_size=512, n_epochs=1)
     
     model.learn(total_timesteps=(ep_length)*num_cpu*1000, callback=checkpoint_callback)
