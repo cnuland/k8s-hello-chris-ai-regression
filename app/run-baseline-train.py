@@ -69,14 +69,14 @@ if __name__ == '__main__':
     checkpoint_callback = CheckpointCallback(save_freq=ep_length, save_path=sess_path,
                                      name_prefix='dd')
     #env_checker.check_env(env)
-    file_name = 'session_40ef1fa0/dd_24576000_steps'
+    file_name = 'session_2f5cbd6d/dd_22118400_steps'
     
     if exists(file_name + '.zip'):
         print('\nloading checkpoint')
         model = PPO.load(file_name, env=env, device="cpu", tensorboard_log="./double_dragon_logs/")
         model.n_steps = ep_length
         model.ent_coef = 0.05
-        model.learning_rate = linear_schedule(0.005)
+        model.learning_rate = linear_schedule(0.05)
         model.n_envs = num_cpu
         model.rollout_buffer.buffer_size = ep_length
         model.rollout_buffer.n_envs = num_cpu

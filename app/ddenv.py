@@ -140,12 +140,12 @@ class DDEnv(Env):
             #self.model_frame_writer = media.VideoWriter(base_dir / model_name, self.output_full[:2], fps=60)
             #self.model_frame_writer.__enter__()
 
-        self.recent_frames = deque()
-        self.recent_frame = np.zeros(
-            (self.frame_stacks, self.output_shape[0], 
-             self.output_shape[1], self.output_shape[2]),
-            dtype=np.uint8)
-        self.recent_memory = np.zeros((self.output_shape[1]*self.memory_height, 3), dtype=np.uint8)
+        #self.recent_frames = deque()
+        #self.recent_frame = np.zeros(
+            #(self.frame_stacks, self.output_shape[0], 
+            # self.output_shape[1], self.output_shape[2]),
+            #dtype=np.uint8)
+        #self.recent_memory = np.zeros((self.output_shape[1]*self.memory_height, 3), dtype=np.uint8)
 
         self.old_x_pos = []
         self.old_y_pos = []
@@ -205,7 +205,7 @@ class DDEnv(Env):
         return game_pixels_render
     def step(self, action):
         self.run_action_on_emulator(action)
-        self.recent_frame = np.roll(self.recent_frame, 1, axis=0)
+        #self.recent_frame = np.roll(self.recent_frame, 1, axis=0)
         obs_memory = self.render()
         self.step_count += 1
 
@@ -343,22 +343,22 @@ class DDEnv(Env):
                 self.locations[2] = True
                 self.levels+=1
                 self.last_level = new_level
-                return 50
+                return 1000
             elif new_level == 48 and self.locations[3] == False: # starting level
                 self.locations[3] = True
                 self.levels+=1
                 self.last_level = new_level
-                return 100         
+                return 2000         
             elif new_level == 89 and self.locations[4] == False: # starting level
                 self.locations[4] = True
                 self.levels+=1
                 self.last_level = new_level
-                return 200
+                return 3000
             elif new_level == 11 and self.locations[5] == False: # starting level
                 self.locations[5] = True
                 self.levels+=1
                 self.last_level = new_level
-                return 300
+                return 4000
             else:
                 return 0
         else:
