@@ -314,11 +314,11 @@ class DDEnv(Env):
         if pos_x != self.old_x_pos or pos_y != self.old_y_pos: # Moving into a new frame, add a positioning reward
             self.old_x_pos = pos_x
             self.old_y_pos = pos_y
-            return 1
+            return (.5 * self.levels)
         else:
             self.old_x_pos = pos_x
             self.old_y_pos = pos_y
-            return - 0.5
+            return (-1 * self.levels)
 
 
     def get_score_reward(self):
@@ -327,7 +327,7 @@ class DDEnv(Env):
             difference = new_score - self.last_score
             self.last_score = new_score
             self.total_score_rew += difference
-            return difference
+            return (difference * self.levels)
         else:
             return 0
     
@@ -343,22 +343,22 @@ class DDEnv(Env):
                 self.locations[2] = True
                 self.levels+=1
                 self.last_level = new_level
-                return 1000
+                return 3000
             elif new_level == 48 and self.locations[3] == False: # starting level
                 self.locations[3] = True
                 self.levels+=1
                 self.last_level = new_level
-                return 2000         
+                return 6000         
             elif new_level == 89 and self.locations[4] == False: # starting level
                 self.locations[4] = True
                 self.levels+=1
                 self.last_level = new_level
-                return 3000
+                return 1000
             elif new_level == 11 and self.locations[5] == False: # starting level
                 self.locations[5] = True
                 self.levels+=1
                 self.last_level = new_level
-                return 4000
+                return 12000
             else:
                 return 0
         else:
@@ -379,7 +379,7 @@ class DDEnv(Env):
     def get_moves_penality(self):
         if self.kick_penality:
             self.kick_penality = False
-            return -10 # Let's make dying bad
+            return -30 # Let's make dying bad
         else:
             return 0
 

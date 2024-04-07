@@ -51,7 +51,7 @@ def make_env(rank, env_conf, seed=0):
 if __name__ == '__main__':
 
 
-    ep_length = 2048 * 50
+    ep_length = 2048 * 30
     sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
 
     env_config = {
@@ -63,25 +63,25 @@ if __name__ == '__main__':
             }
     
     
-    num_cpu = 24 #64 #46  # Also sets the number of episodes per training iteration
+    num_cpu = 40 #64 #46  # Also sets the number of episodes per training iteration
     env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
     
     checkpoint_callback = CheckpointCallback(save_freq=ep_length, save_path=sess_path,
                                      name_prefix='dd')
     #env_checker.check_env(env)
-    file_name = 'session_2f5cbd6d/dd_22118400_steps'
+    file_name = '../lvl4_with_jumping/session_ff9d1433/dd_9830400_steps'
     
     if exists(file_name + '.zip'):
         print('\nloading checkpoint')
         model = PPO.load(file_name, env=env, device="cpu", tensorboard_log="./double_dragon_logs/")
         model.n_steps = ep_length
-        model.ent_coef = 0.05
-        model.learning_rate = linear_schedule(0.05)
+        #model.ent_coef = 0.05
+        #model.learning_rate = linear_schedule(0.05)
         model.n_envs = num_cpu
         model.rollout_buffer.buffer_size = ep_length
         model.rollout_buffer.n_envs = num_cpu
         model.verbose = 1
-        model.gamma = 0.977
+        model.gamma = 0.987
         model.batch_size = 512
         model.rollout_buffer.reset()
     else:
